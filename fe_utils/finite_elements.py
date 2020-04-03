@@ -1,6 +1,7 @@
 # Cause division to always mean floating point division.
 from __future__ import division
 import numpy as np
+from scipy.special import comb
 from .reference_elements import ReferenceInterval, ReferenceTriangle
 np.seterr(invalid='ignore', divide='ignore')
 
@@ -18,8 +19,22 @@ def lagrange_points(cell, degree):
     <ex-lagrange-points>`.
 
     """
+    if degree == 0:
+        raise ValueError("degree of polynomials should be >= 1")
 
-    raise NotImplementedError
+
+    if(cell.dim == 1):
+        vertices = np.array([i/degree for i in range(degree+1)])
+        vertices.shape = [degree+1, 1]
+        
+    elif(cell.dim == 2):
+        vertices = np.array([(j/degree, i/degree) for i in range(degree+1) for j in range(degree+1-i)])
+    
+    else:
+        raise ValueError("not implemented dimension")
+
+    return vertices            
+
 
 
 def vandermonde_matrix(cell, degree, points, grad=False):
@@ -36,8 +51,30 @@ def vandermonde_matrix(cell, degree, points, grad=False):
     The implementation of this function is left as an :ref:`exercise
     <ex-vandermonde>`.
     """
+    d = cell.dim
+    n = degree 
+    m = points.shape[0] # number of rows
+    k = comb(n+d, n, exact=True) # number of columns
+    V = np.zeros((m, k)) # Vandermond Matrix
 
-    raise NotImplementedError
+    if(d == 1):
+        for ni in range(n+1):
+                V[:,ni] = points[:,0]**ni
+
+    # V = np.array([p[0]**j for p in points for j in range(degree+1)])
+    # V.shape = [m,degree+1]                
+
+    elif(d == 2):
+        ki = 0 
+        for ni in range(n+1): 
+            for j in range(ni+1): 
+                V[:,ki] = points[:,0]**(ni-j)*points[:,1]**j 
+                ki = ki+1 
+
+    else:
+        raise ValueError("not implemented dimension")               
+
+    return V
 
 
 class FiniteElement(object):
