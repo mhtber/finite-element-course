@@ -55,11 +55,18 @@ def vandermonde_matrix(cell, degree, points, grad=False):
     n = degree 
     m = points.shape[0] # number of rows
     k = comb(n+d, n, exact=True) # number of columns
-    V = np.zeros((m, k)) # Vandermond Matrix
+    if grad == False:
+        V = np.array((m, k), dtype=float) # Vandermond Matrix
+    if grad == True:
+        V = np.zeros((m, k, d)) 
 
     if(d == 1):
         for ni in range(n+1):
-                V[:,ni] = points[:,0]**ni
+                if grad == False:
+                    V[:,ni] = points[:,0]**ni
+                if grad == True: 
+                    #V[:, ni, 0] =  (ni*points[:,0]**(ni-1) if ni-1 >= 0 else 0.0)
+                    V[:, ni, 0] =  np.nan_to_num(ni*points[:,0]**(ni-1)) 
 
     # V = np.array([p[0]**j for p in points for j in range(degree+1)])
     # V.shape = [m,degree+1]                
@@ -67,8 +74,12 @@ def vandermonde_matrix(cell, degree, points, grad=False):
     elif(d == 2):
         ki = 0 
         for ni in range(n+1): 
-            for j in range(ni+1): 
-                V[:,ki] = points[:,0]**(ni-j)*points[:,1]**j 
+            for j in range(ni+1):
+                if grad == False :
+                    V[:,ki] = points[:,0]**(ni-j)*points[:,1]**j
+                if grad == True : 
+                    V[:,ki, 0] = np.nan_to_num((ni-j)*points[:,0]**(ni-j-1)*points[:,1]**j)
+                    V[:,ki, 1] = np.nan_to_num(points[:,0]**(ni-j)*j*points[:,1]**(j-1))
                 ki = ki+1 
 
     else:
@@ -113,10 +124,10 @@ class FiniteElement(object):
             self.nodes_per_entity = np.array([len(entity_nodes[d][0])
                                               for d in range(cell.dim+1)])
 
-        # Replace this exception with some code which sets
-        # self.basis_coefs
+        # sets self.basis_coefs
         # to an array of polynomial coefficients defining the basis functions.
-        raise NotImplementedError
+        V = vandermonde_matrix(self.cell, self.degree, self.nodes, grad=False)
+        self.basis_coefs = np.linalg.inv(V)
 
         #: The number of nodes in this element.
         self.node_count = nodes.shape[0]
@@ -141,8 +152,11 @@ class FiniteElement(object):
         <ex-tabulate>`.
 
         """
-
-        raise NotImplementedError
+        V = vandermonde_matrix(self.cell, self.degree, points, grad)
+        C = self.basis_coefs
+        T = np.dot(V, C)
+        
+        return T
 
     def interpolate(self, fn):
         """Interpolate fn onto this finite element by evaluating it
@@ -181,9 +195,10 @@ class LagrangeElement(FiniteElement):
         <ex-lagrange-element>`.
         """
 
-        raise NotImplementedError
+        # raise NotImplementedError
         # Use lagrange_points to obtain the set of nodes.  Once you
         # have obtained nodes, the following line will call the
         # __init__ method on the FiniteElement class to set up the
         # basis coefficients.
+        nodes = lagrange_points(cell, degree)
         super(LagrangeElement, self).__init__(cell, degree, nodes)

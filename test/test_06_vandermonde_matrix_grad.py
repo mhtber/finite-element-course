@@ -26,7 +26,7 @@ def test_vandermonde_matrix_grad_shape(cell, degree):
 @pytest.mark.parametrize('degree', range(8))
 def test_vandermonde_matrix_grad_values_1D(degree):
 
-    points = np.array([[0], [1]])
+    points = np.array([[0.], [1.]])
 
     V = vandermonde_matrix(ReferenceInterval, degree, points, grad=True)
 
