@@ -24,16 +24,16 @@ def lagrange_points(cell, degree):
 
 
     if(cell.dim == 1):
-        vertices = np.array([i/degree for i in range(degree+1)])
-        vertices.shape = [degree+1, 1]
+        nodes = np.array([i/degree for i in range(degree+1)])
+        nodes.shape = [degree+1, 1]
         
     elif(cell.dim == 2):
-        vertices = np.array([(j/degree, i/degree) for i in range(degree+1) for j in range(degree+1-i)])
+        nodes = np.array([(j/degree, i/degree) for i in range(degree+1) for j in range(degree+1-i)])
     
     else:
         raise ValueError("not implemented dimension")
 
-    return vertices            
+    return nodes            
 
 
 
@@ -56,7 +56,7 @@ def vandermonde_matrix(cell, degree, points, grad=False):
     m = points.shape[0] # number of rows
     k = comb(n+d, n, exact=True) # number of columns
     if grad == False:
-        V = np.array((m, k), dtype=float) # Vandermond Matrix
+        V = np.zeros((m, k)) # Vandermond Matrix
     if grad == True:
         V = np.zeros((m, k, d)) 
 
@@ -121,9 +121,8 @@ class FiniteElement(object):
         if entity_nodes:
             #: ``nodes_per_entity[d]`` is the number of entities
             #: associated with an entity of dimension d.
-            self.nodes_per_entity = np.array([len(entity_nodes[d][0])
-                                              for d in range(cell.dim+1)])
-
+            self.nodes_per_entity = np.array([len(entity_nodes[d][0]) for d in range(cell.dim+1)])
+            
         # sets self.basis_coefs
         # to an array of polynomial coefficients defining the basis functions.
         V = vandermonde_matrix(self.cell, self.degree, self.nodes, grad=False)
@@ -153,8 +152,20 @@ class FiniteElement(object):
 
         """
         V = vandermonde_matrix(self.cell, self.degree, points, grad)
+        
         C = self.basis_coefs
-        T = np.dot(V, C)
+        if grad == False:
+            T = np.dot(V, C)
+        
+        if grad == True:
+            
+            # d = self.cell.dim
+            # T = np.zeros(V.shape)
+            # T[:,:,0] = np.dot(V[:,:,0], C)
+            # if(d == 2):
+            #     T[:,:,1] = np.dot(V[:,:,1], C)     
+
+            T = np.einsum("ijk,jl->ilk", V, C)                
         
         return T
 
@@ -172,8 +183,7 @@ class FiniteElement(object):
         <ex-interpolate>`.
 
         """
-
-        raise NotImplementedError
+        return np.array([fn(Xi) for Xi in lagrange_points(self.cell, self.degree)])
 
     def __repr__(self):
         return "%s(%s, %s)" % (self.__class__.__name__,
@@ -201,4 +211,41 @@ class LagrangeElement(FiniteElement):
         # __init__ method on the FiniteElement class to set up the
         # basis coefficients.
         nodes = lagrange_points(cell, degree)
-        super(LagrangeElement, self).__init__(cell, degree, nodes)
+
+        if(cell.dim==1):
+            entity_nodes = {0:{0:[], 1:[]},1:{0:[]}} 
+            for n in range(len(nodes)): 
+                if nodes[n] == 0: 
+                    entity_nodes[0][0] += [n] 
+                elif nodes[n] == 1: 
+                    entity_nodes[0][1] += [n] 
+                elif(degree > 1):
+                    entity_nodes[1][0] += [n]
+
+
+        if(cell.dim == 2):
+            entity_nodes = {0:{0:[], 1:[], 2:[]}, 1:{0:[], 1:[], 2:[]}, 2:{0:[]}} 
+
+            
+            for j in range(3):
+                for n in range(len(nodes)):
+                    if cell.point_in_entity(nodes[n], (0,j)):
+                        entity_nodes[0][j] += [n]
+
+            flattned_list = [l for L in entity_nodes[0].values() for l in L]
+            
+            for j in range(3): 
+                for n in range(len(nodes)): 
+                    if cell.point_in_entity(nodes[n], (1,j)) and not n in flattned_list : 
+                        entity_nodes[1][j] += [n]
+                entity_nodes[1][j] = sorted(entity_nodes[1][j])    
+
+            flattned_list += [l for  L in entity_nodes[1].values() for l in L]
+            
+            for n in range(len(nodes)): 
+                if (not n in flattned_list):
+                        entity_nodes[2][0] += [n]
+
+
+
+        super(LagrangeElement, self).__init__(cell, degree, nodes, entity_nodes=entity_nodes)

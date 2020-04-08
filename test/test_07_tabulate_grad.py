@@ -24,7 +24,7 @@ def test_tabulate_grad_shape(cell, degree):
     """Check that tabulating at the nodes produces the identity matrix."""
     fe = LagrangeElement(cell, degree)
 
-    vals = fe.tabulate(np.array([[0] * cell.dim]), grad=True)
+    vals = fe.tabulate(np.array([[0.] * cell.dim]), grad=True)
 
     correct_shape = (1, fe.nodes.shape[0], cell.dim)
 
@@ -37,9 +37,9 @@ def test_tabulate_grad_1D():
     """Check that tabulating the gradient of a first degree element is correct."""
     fe = LagrangeElement(ReferenceInterval, 1)
 
-    vals = fe.tabulate(np.array([[0]]), grad=True)
+    vals = fe.tabulate(np.array([[0.0]]), grad=True)
 
-    correct_answer = np.array([[[-1], [1]]], dtype=np.double)
+    correct_answer = np.array([[[-1.0], [1.0]]], dtype=np.double)
 
     print("Your answer is:")
     print(vals)
@@ -53,7 +53,7 @@ def test_tabulate_grad_2D():
     """Check that tabulating the gradient of a first degree element is correct."""
     fe = LagrangeElement(ReferenceTriangle, 1)
 
-    vals = fe.tabulate(np.array([[0, 0]]), grad=True)
+    vals = fe.tabulate(np.array([[0., 0.]]), grad=True)
 
     # The order of this list depends on the order in which the nodes were defined.
     gradients = np.array([[-1., -1.] if (n == [0., 0.]).all() else n
