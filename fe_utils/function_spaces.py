@@ -8,6 +8,20 @@ from matplotlib.tri import Triangulation
 
 class FunctionSpace(object):
 
+    # set the first global node associated to entity(d, i)
+    def __G(self, d, i):
+        N_d = self.element.nodes_per_entity[d]
+        G_d_i = i*N_d
+        if(d==0):
+            return G_d_i
+        else:
+            for delta in range(d):
+                N_delta = self.element.nodes_per_entity[delta]
+                E_delta = self.mesh.entity_counts[delta]
+                G_d_i = G_d_i + N_delta*E_delta
+            return G_d_i            
+
+
     def __init__(self, mesh, element):
         """A finite element space.
 
@@ -23,7 +37,7 @@ class FunctionSpace(object):
         #: The :class:`~.finite_elements.FiniteElement` of this space.
         self.element = element
 
-        raise NotImplementedError
+        # raise NotImplementedError
 
         # Implement global numbering in order to produce the global
         # cell node list for this space.
@@ -31,7 +45,25 @@ class FunctionSpace(object):
         #: which each row lists the global nodes incident to the corresponding
         #: cell. The implementation of this member is left as an
         #: :ref:`exercise <ex-function-space>`
-        self.cell_nodes = None
+        dim = mesh.cell.dim
+        nrows = mesh.entity_counts[dim]
+        ncols = element.node_count
+        M = np.zeros((nrows, ncols), dtype=np.int32)
+
+        # number of entities per cell
+        Ehat = np.empty([dim+1], dtype=int)
+        N = np.empty([dim+1], dtype=int)
+
+        for c in range(nrows):
+            for delta in range(dim+1):
+                Ehat[delta] = len(element.entity_nodes[delta])
+                N[delta] = element.nodes_per_entity[delta]
+                for epsilon in range(Ehat[delta]):
+                    i = mesh.adjacency(dim, delta)[c][epsilon]
+                    G_delta_i = self.__G(delta, i)
+                    M[c, element.entity_nodes[delta][epsilon]] = np.array(list(range(G_delta_i, G_delta_i+N[delta])),dtype=int)
+
+        self.cell_nodes = M
 
         #: The total number of nodes in the function space.
         self.node_count = np.dot(element.nodes_per_entity, mesh.entity_counts)
@@ -40,7 +72,6 @@ class FunctionSpace(object):
         return "%s(%s, %s)" % (self.__class__.__name__,
                                self.mesh,
                                self.element)
-
 
 class Function(object):
     def __init__(self, function_space, name=None):

@@ -87,7 +87,11 @@ class Mesh(object):
         """
 
         if dim2 >= dim1:
-            raise ValueError("""dim2 must be less than dim1.""")
+            if dim2 == dim1 == self.dim:
+                l = self.entity_counts[self.dim]
+                return np.array(range(l), dtype=np.int32).reshape((l,1))
+            else :
+                raise ValueError("""dim2 must be less than dim1.""")
         if dim2 < 0:
             raise ValueError("""dim2 cannot be negative.""")
         if dim1 > self.dim:
