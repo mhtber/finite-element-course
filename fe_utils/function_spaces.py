@@ -1,5 +1,5 @@
 import numpy as np
-from . import ReferenceTriangle, ReferenceInterval
+from . import ReferenceTriangle, ReferenceInterval, quadrature 
 from .finite_elements import LagrangeElement, lagrange_points
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -198,4 +198,21 @@ class Function(object):
 
         :result: The integral (a scalar)."""
 
-        raise NotImplementedError
+        V = self.function_space
+        quadratureRule = quadrature.gauss_quadrature(V.mesh.cell, V.element.degree)
+        w_q = quadratureRule.weights
+        Phi_i_X_q = V.element.tabulate(quadratureRule.points)
+        M = V.cell_nodes
+        
+        ncells = V.mesh.entity_counts[-1]
+        nquadpoints = len(quadratureRule.weights)
+
+
+        s = 0
+        for c in range(ncells):
+            J = abs(np.linalg.det(V.mesh.jacobian(c)))
+            for q in range(nquadpoints):
+                s = s + np.sum(self.values[M[c, :]] * Phi_i_X_q[q, :]*J*w_q[q])
+
+        #raise NotImplementedError
+        return s

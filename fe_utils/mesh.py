@@ -71,6 +71,12 @@ class Mesh(object):
         #: :class:`Mesh` is composed.
         self.cell = (0, ReferenceInterval, ReferenceTriangle)[self.dim]
 
+        # Nabla_{alpha} Psi_{j}
+        P1 = LagrangeElement(self.cell, 1)
+        X0 = self.cell.vertices[0:1] # to get an ndarray [[0., 0.]]
+        self.Nabla_Psi = P1.tabulate(X0, grad=True)[0]
+
+
     def adjacency(self, dim1, dim2):
         """Return the set of `dim2` entities adjacent to each `dim1`
         entity. For example if `dim1==2` and `dim2==1` then return the list of
@@ -114,8 +120,8 @@ class Mesh(object):
         :param c: The number of the cell for which to return the Jacobian.
         :result: The Jacobian for cell ``c``.
         """
-
-        raise NotImplementedError
+        xhat = self.vertex_coords[self.cell_vertices[c]]
+        return np.dot(xhat.transpose(), self.Nabla_Psi)
 
 
 class UnitIntervalMesh(Mesh):
