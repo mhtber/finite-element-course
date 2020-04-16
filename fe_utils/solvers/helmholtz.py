@@ -53,22 +53,14 @@ def assemble(fs, f):
         # l[nodes] += np.dot( np.dot(f.values[nodes], Phi.T), np.dot(Phi.T, Q.weights)) * detJ
 
         for q in range(len(Q.weights)): 
-            for i in range(fe.node_count): 
-                l[M[c,i]] += Phi[q, i] * np.dot(f.values[M[c,:]], Phi[q,:]) * Q.weights[q] * detJ 
- 
-        for q in range(len(Q.weights)): 
+            l[M[c,:]] += Phi[q, :] * np.dot(f.values[M[c,:]], Phi[q,:]) * Q.weights[q] * detJ 
+            
             Phi_q = Phi[q,:].reshape(-1,1) 
-            A[np.ix_(M[c,:], M[c,:])] += detJ * Q.weights[q] * Phi_q @ Phi_q.T 
-       
-
-        for q in range(len(Q.weights)):
-            for i in range(fe.node_count):
-                for j in range(fe.node_count):
-                        A[M[c, i], M[c,j]] += np.dot(
-                                                  np.dot(J_Phi[q, i, :],inv_J), 
-                                                  np.dot(J_Phi[q, j, :],inv_J)
-                                                  ) * Q.weights[q] * detJ 
-
+            grad_Phi_q = J_Phi[q, :, :].T
+            A[np.ix_(M[c,:], M[c,:])] += ( Phi_q @ Phi_q.T 
+                                         + (inv_J.T @ grad_Phi_q).T @ (inv_J.T @ grad_Phi_q)
+                                         ) * detJ * Q.weights[q]
+            
     return A, l
 
 
