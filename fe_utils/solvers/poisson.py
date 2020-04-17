@@ -18,7 +18,53 @@ def assemble(fs, f):
     the function space in which to solve and the right hand side
     function."""
 
-    raise NotImplementedError
+    fe = fs.element
+    mesh = fs.mesh
+
+    # Create an appropriate (complete) quadrature rule.
+    Q = gauss_quadrature(fe.cell, fe.degree + 1)
+
+    # Tabulate the basis functions and their gradients at the quadrature points.
+    Phi = fe.tabulate(Q.points)
+    J_Phi = fe.tabulate(Q.points, grad=True)    
+
+    # Create the left hand side matrix and right hand side vector.
+    # This creates a sparse matrix because creating a dense one may
+    # well run your machine out of memory!
+
+    A = sp.lil_matrix((fs.node_count, fs.node_count))
+    l = np.zeros(fs.node_count)
+
+    M = fs.cell_nodes
+
+    # Now loop over all the cells and assemble A and l
+
+    for c in range(mesh.entity_counts[-1]):
+
+        # Compute the change of coordinates.
+        J = mesh.jacobian(c)
+        inv_J = np.linalg.inv(J)
+        detJ = np.abs(np.linalg.det(J))
+
+        # Compute the actual cell quadrature.
+        # l[nodes] += np.dot( np.dot(f.values[nodes], Phi.T), np.dot(Phi.T, Q.weights)) * detJ
+
+        for q in range(len(Q.weights)): 
+            l[M[c,:]] += Phi[q, :] * np.dot(f.values[M[c,:]], Phi[q,:]) * Q.weights[q] * detJ 
+            
+            grad_Phi_q = J_Phi[q, :, :].T
+            A[np.ix_(M[c,:], M[c,:])] += ( (inv_J.T @ grad_Phi_q).T @ (inv_J.T @ grad_Phi_q)
+                                         ) * detJ * Q.weights[q]
+            
+
+    # Force Dirichlet B.C.
+    bn = boundary_nodes(fs)
+    l[bn] = 0
+    A[bn, :] = 0
+    A[bn, bn] = 1
+    
+    return A, l
+
 
 
 def boundary_nodes(fs):
